@@ -8,16 +8,16 @@ CTPASS is a Python-based project designed to generate various types of passwords
 - Easy to integrate and use in other projects.
 
 ## Requirements
-Python 3.x
-sys
-colorama
-random
-time
-json
-xml
-tkinter
-cryptography
-customtkinter
+- Python 3.x
+- sys
+- colorama
+- random
+- time
+- json
+- xml
+- tkinter
+- cryptography
+- customtkinter
 
 ## Installation
 
