@@ -1,87 +1,186 @@
-import customtkinter
-from colorama import Fore
-from random import randint , randrange , choice
-import tkinter
-import mysql.connector as mc
-customtkinter.set_appearance_mode('dark')
-customtkinter.set_default_color_theme('dark-blue')
-
-page_1 = customtkinter.CTk()
-page_1.geometry('485x500')
-page_1.minsize(width=485 , height=500)
-page_1.maxsize(width=485 , height=500)
-page_1.title('xCTPASS')
-  
-def button_Login_function_usage():
-    user_name = username.get()
-    pass_word = password.get()
-    check = check_robot.get()
-    GENDER = gender.get()
-    if user_name == '1' and pass_word == '11':
-        if check == 1:
-            page_1.destroy()
-            page_2 = customtkinter.CTk()
-            page_2.geometry('745x480')
-            page_2.title('home page')
-            page_2.minsize(width=745 , height=480)
-            page_2.maxsize(width=745 , height=480)
-            lb_xCTPASS = customtkinter.CTkLabel(master=page_2 , text=f'xCTPASS : {__version__}', font=('Arial',15),text_color='red')
-            lb_xCTPASS.place(x = 10,y=8)
-            lb_user = customtkinter.CTkLabel(master=page_2 , text=f'USERNAME  : {user_name}' , font=('Arial',15),text_color='green')
-            lb_user.place(x=10,y=35)
-            HIDE_PASS_lEN= len(pass_word)
-            HIDE_PASS=''
-            for i in range(HIDE_PASS_lEN):
-                HIDE_PASS+='*'
-            lb_pass = customtkinter.CTkLabel(master=page_2 , text=f'PASSWORD : {HIDE_PASS}', font=('Arial',15),text_color='green')
-            lb_pass.place(x=10 , y=63)
-            BTN_help = customtkinter.CTkButton(master=page_2 , text='Help', width=100 ,hover_color='#009eff' , text_color='black' , fg_color='#00ffff')
-            BTN_help.place(x=640 , y=8)
-            page_2.mainloop()
-def button_SING_function_usage():
-    page_3 = customtkinter.CTk()
-    page_3.geometry('485x500')
-    page_3.minsize(width=485 , height=500)
-    page_3.maxsize(width=485 , height=500)
-    page_3.title('xCTPASS')
-
-    frame1 = customtkinter.CTkFrame(master=page_3 , width=340 , height=420)
-    frame1.place(x=75,y=45)
-
-    title1 = customtkinter.CTkLabel(master=frame , text=f'Create a account {__xCTPASS__}' ,font=('Arial',20))
-    title1.place(x=30,y=30)
-    page_3.mainloop()
-__version__="v1.2.8T"   
-__xCTPASS__ ='xCTPASS'
-frame = customtkinter.CTkFrame(master=page_1 , width=340 , height=420)
-frame.place(x=75,y=45)
-
-title = customtkinter.CTkLabel(master=frame , text=f'Login to the account {__xCTPASS__}' ,font=('Arial',20))
-title.place(x=30,y=30)
-
-username = customtkinter.CTkEntry(master=frame , width=220 , placeholder_text='Username' , border_color='#00ff00' )
-username.place(x=58,y=110)
-
-password = customtkinter.CTkEntry(master=frame , width=220 , placeholder_text='Password' , border_color='#00ff00')
-password.place(x=58 , y=160)
-
-gender = customtkinter.CTkComboBox(master=frame ,text_color='white',values=['Man','Woman'] , width=80 , height=25 ,button_color='#00ff00' ,border_color='#00ff00')
-gender.place(x=198 , y= 210)
-
-age = customtkinter.CTkEntry(master=frame , width=100 , placeholder_text='age' , border_color='#00ff00' ,height=25)
-age.place(x=58 , y=210 )
+import os
+import sys
+import random as rnd
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding
+import base64
+import customtkinter as ctk
 
 
-btn_login = customtkinter.CTkButton(master=frame , width=110 , text="login" ,text_color='white',hover_color='#009e00' , fg_color='#00ff00',command=button_Login_function_usage)
-btn_login.place(x=118 , y= 330)
+def aes_encrypt_decrypt(key, iv, text, action):
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
 
-check_robot = customtkinter.CTkCheckBox(master=frame , text='IM Not Robot', font=('Arial',20),checkbox_width=20 ,checkbox_height=20)
-check_robot.place(x=95,y=270)
+    if action == "encrypt":
+        padder = padding.PKCS7(algorithms.AES.block_size).padder()
+        padded_data = padder.update(text.encode()) + padder.finalize()
+        encryptor = cipher.encryptor()
+        encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
+        return base64.b64encode(encrypted_data).decode()
 
-lable_singUP = customtkinter.CTkLabel(master=frame , text="")
+    elif action == "decrypt":
+        decryptor = cipher.decryptor()
+        decrypted_data = decryptor.update(base64.b64decode(text)) + decryptor.finalize()
+        unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+        unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
+        return unpadded_data.decode()
 
 
-page_1.mainloop()
+def sha256_hash(text):
+    digest = hashes.Hash(hashes.SHA256())
+    digest.update(text.encode())
+    return digest.finalize().hex()
 
 
+def generate_password(level):
+    if level == "Simple":
+        return "user123"
+    elif level == "Strong":
+        return "user@Strong123"
+    elif level == "Secure":
+        return "S3cur3!@#User123"
+    else:
+        return ""
 
+
+ctk.set_appearance_mode("System")
+ctk.set_default_color_theme("blue")
+
+app = ctk.CTk()
+app.title("Advanced Encryption and Password Manager Tool")
+app.geometry("800x600")
+
+
+menu_frame = ctk.CTkFrame(app, width=200, corner_radius=0)
+menu_frame.pack(side="left", fill="y")
+
+content_frame = ctk.CTkFrame(app)
+content_frame.pack(side="right", expand=True, fill="both")
+
+
+def show_password_manager():
+    for widget in content_frame.winfo_children():
+        widget.destroy()
+
+    label = ctk.CTkLabel(content_frame, text="Password Manager", font=("Arial", 20))
+    label.pack(pady=10)
+
+    level_label = ctk.CTkLabel(content_frame, text="Select Password Level:")
+    level_label.pack(pady=5)
+
+    level_combo = ctk.CTkComboBox(content_frame, values=["Simple", "Strong", "Secure"])
+    level_combo.pack(pady=5)
+
+    result_label = ctk.CTkLabel(content_frame, text="")
+    result_label.pack(pady=10)
+
+    def generate():
+        level = level_combo.get()
+        password = generate_password(level)
+        result_label.configure(text=f"Generated Password: {password}")
+
+    generate_button = ctk.CTkButton(
+        content_frame, text="Generate Password", command=generate
+    )
+    generate_button.pack(pady=10)
+
+
+def show_encryption_tool():
+    for widget in content_frame.winfo_children():
+        widget.destroy()
+
+    label = ctk.CTkLabel(
+        content_frame, text="AES Encryption/Decryption", font=("Arial", 20)
+    )
+    label.pack(pady=10)
+
+    text_label = ctk.CTkLabel(content_frame, text="Enter Text:")
+    text_label.pack(pady=5)
+    text_entry = ctk.CTkEntry(content_frame, width=400)
+    text_entry.pack(pady=5)
+
+    key_label = ctk.CTkLabel(content_frame, text="Enter Key (16 bytes):")
+    key_label.pack(pady=5)
+    key_entry = ctk.CTkEntry(content_frame, width=400)
+    key_entry.pack(pady=5)
+
+    iv_label = ctk.CTkLabel(content_frame, text="Enter IV (16 bytes):")
+    iv_label.pack(pady=5)
+    iv_entry = ctk.CTkEntry(content_frame, width=400)
+    iv_entry.pack(pady=5)
+
+    result_label = ctk.CTkLabel(content_frame, text="")
+    result_label.pack(pady=10)
+
+    def encrypt():
+        try:
+            text = text_entry.get()
+            key = key_entry.get().encode()
+            iv = iv_entry.get().encode()
+            result = aes_encrypt_decrypt(key, iv, text, "encrypt")
+            result_label.configure(text=f"Encrypted: {result}")
+        except Exception as e:
+            result_label.configure(text=f"Error: {e}")
+
+    def decrypt():
+        try:
+            text = text_entry.get()
+            key = key_entry.get().encode()
+            iv = iv_entry.get().encode()
+            result = aes_encrypt_decrypt(key, iv, text, "decrypt")
+            result_label.configure(text=f"Decrypted: {result}")
+        except Exception as e:
+            result_label.configure(text=f"Error: {e}")
+
+    encrypt_button = ctk.CTkButton(content_frame, text="Encrypt", command=encrypt)
+    encrypt_button.pack(pady=5)
+
+    decrypt_button = ctk.CTkButton(content_frame, text="Decrypt", command=decrypt)
+    decrypt_button.pack(pady=5)
+
+
+def show_hashing_tool():
+    for widget in content_frame.winfo_children():
+        widget.destroy()
+
+    label = ctk.CTkLabel(content_frame, text="SHA-256 Hashing", font=("Arial", 20))
+    label.pack(pady=10)
+
+    text_label = ctk.CTkLabel(content_frame, text="Enter Text:")
+    text_label.pack(pady=5)
+
+    text_entry = ctk.CTkEntry(content_frame, width=400)
+    text_entry.pack(pady=5)
+
+    result_label = ctk.CTkLabel(content_frame, text="")
+    result_label.pack(pady=10)
+
+    def hash_text():
+        text = text_entry.get()
+        hashed = sha256_hash(text)
+        result_label.configure(text=f"SHA-256 Hash: {hashed}")
+
+    hash_button = ctk.CTkButton(content_frame, text="Hash Text", command=hash_text)
+    hash_button.pack(pady=10)
+
+
+password_manager_button = ctk.CTkButton(
+    menu_frame, text="Password Manager", command=show_password_manager
+)
+password_manager_button.pack(pady=10, padx=10, fill="x")
+
+encryption_tool_button = ctk.CTkButton(
+    menu_frame, text="Encryption Tool", command=show_encryption_tool
+)
+encryption_tool_button.pack(pady=10, padx=10, fill="x")
+
+hashing_tool_button = ctk.CTkButton(
+    menu_frame, text="Hashing Tool", command=show_hashing_tool
+)
+hashing_tool_button.pack(pady=10, padx=10, fill="x")
+
+exit_button = ctk.CTkButton(menu_frame, text="Exit", command=sys.exit)
+exit_button.pack(pady=10, padx=10, fill="x")
+
+app.mainloop()

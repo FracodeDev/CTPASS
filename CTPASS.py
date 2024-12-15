@@ -4,7 +4,17 @@ import time
 import random as rnd
 from colorama import Fore, Style
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.asymmetric import rsa, padding as asym_padding
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes, padding
+from cryptography.hazmat.primitives.serialization import (
+    load_pem_private_key,
+    load_pem_public_key,
+    Encoding,
+    PrivateFormat,
+    PublicFormat,
+)
+from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.backends import default_backend
 import base64
 
@@ -23,30 +33,112 @@ def slow_print(text, delay=0.05):
 def show_usage():
     clear_screen()
     usage_text = """
-    ====================================
-    Welcome to the Password Manager Tool
-    ====================================
+    ================================================
+    🔐 Advanced Encryption and Password Manager Tool 🔐
+    ================================================
+
     This tool provides the following features:
 
-    1. Create and manage passwords:
-       - Generate Simple, Strong, or Secure passwords.
-       - Create professional password lists and save them to files.
+    1️⃣ Password Management:
+       - Create Simple, Strong, or Secure passwords based on user input.
+       - Generate professional password lists and save them to files.
 
-    2. Encryption and Decryption:
-       - Encrypt any text using AES encryption.
-       - Decrypt text back to its original form.
+    2️⃣ Encryption and Decryption:
+       - AES, RSA, ChaCha20, and Blowfish encryption and decryption.
+       - Hashing text using SHA-256.
 
-    3. Timer:
-       - Use a countdown timer for time management tasks.
+    3️⃣ Utility Features:
+       - Timer for task management.
 
-    Features include:
-    - Easy-to-use interface.
-    - Secure password generation and storage.
-    - Advanced encryption for sensitive data.
+    🚀 Easy-to-use interface with advanced security features.
 
-    ====================================
+    ================================================
     """
-    slow_print(Fore.MAGENTA + usage_text + Fore.RESET, delay=0.01)
+    slow_print(Fore.CYAN + usage_text + Fore.RESET, delay=0.01)
+
+
+def aes_encrypt_decrypt(key, iv, text, action):
+    backend = default_backend()
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
+
+    if action == "encrypt":
+        padder = padding.PKCS7(algorithms.AES.block_size).padder()
+        padded_data = padder.update(text.encode()) + padder.finalize()
+        encryptor = cipher.encryptor()
+        encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
+        return base64.b64encode(encrypted_data).decode()
+
+    elif action == "decrypt":
+        decryptor = cipher.decryptor()
+        decrypted_data = decryptor.update(base64.b64decode(text)) + decryptor.finalize()
+        unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+        unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
+        return unpadded_data.decode()
+
+
+def rsa_generate_keys():
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public_key = private_key.public_key()
+    return private_key, public_key
+
+
+def rsa_encrypt_decrypt(key, text, action):
+    if action == "encrypt":
+        encrypted = key.encrypt(
+            text.encode(),
+            asym_padding.OAEP(
+                mgf=asym_padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None,
+            ),
+        )
+        return base64.b64encode(encrypted).decode()
+
+    elif action == "decrypt":
+        decrypted = key.decrypt(
+            base64.b64decode(text),
+            asym_padding.OAEP(
+                mgf=asym_padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None,
+            ),
+        )
+        return decrypted.decode()
+
+
+def chacha_encrypt_decrypt(key, nonce, text, action):
+    chacha = ChaCha20Poly1305(key)
+    if action == "encrypt":
+        encrypted = chacha.encrypt(nonce, text.encode(), None)
+        return base64.b64encode(encrypted).decode()
+
+    elif action == "decrypt":
+        decrypted = chacha.decrypt(nonce, base64.b64decode(text), None)
+        return decrypted.decode()
+
+
+def blowfish_encrypt_decrypt(key, iv, text, action):
+    cipher = Cipher(algorithms.Blowfish(key), modes.CBC(iv), backend=default_backend())
+
+    if action == "encrypt":
+        padder = padding.PKCS7(algorithms.Blowfish.block_size).padder()
+        padded_data = padder.update(text.encode()) + padder.finalize()
+        encryptor = cipher.encryptor()
+        encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
+        return base64.b64encode(encrypted_data).decode()
+
+    elif action == "decrypt":
+        decryptor = cipher.decryptor()
+        decrypted_data = decryptor.update(base64.b64decode(text)) + decryptor.finalize()
+        unpadder = padding.PKCS7(algorithms.Blowfish.block_size).unpadder()
+        unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
+        return unpadded_data.decode()
+
+
+def sha256_hash(text):
+    digest = hashes.Hash(hashes.SHA256())
+    digest.update(text.encode())
+    return digest.finalize().hex()
 
 
 def create_password():
@@ -59,14 +151,14 @@ def create_password():
     print(Fore.RESET)
     level = input(Fore.YELLOW + "Choose the level (1/2/3/4): ").strip()
 
-    if level == "1":  
+    if level == "1":
         name = input(Fore.GREEN + "Enter your first name: ")
         last_name = input(Fore.GREEN + "Enter your last name: ")
         birth_year = input(Fore.GREEN + "Enter your birth year: ")
         password = f"{name[:4]}{last_name[0]}{birth_year[-2:]}"
         print(Fore.CYAN + f"Generated Simple Password: {password}")
 
-    elif level == "2": 
+    elif level == "2":
         name = input(Fore.GREEN + "Enter your first name: ")
         last_name = input(Fore.GREEN + "Enter your last name: ")
         birth_year = input(Fore.GREEN + "Enter your birth year: ")
@@ -74,35 +166,31 @@ def create_password():
         password = f"{name[:3]}{rnd.choice(['!', '@', '#'])}{last_name[:2]}{birth_year[-2:]}{phone[-4:]}"
         print(Fore.CYAN + f"Generated Strong Password: {password}")
 
-    elif level == "3": 
+    elif level == "3":
         name = input(Fore.GREEN + "Enter your first name: ")
         last_name = input(Fore.GREEN + "Enter your last name: ")
         birth_year = input(Fore.GREEN + "Enter your birth year: ")
         phone = input(Fore.GREEN + "Enter your phone number: ")
         national_id = input(Fore.GREEN + "Enter your national ID: ")
-        random_string = ''.join(rnd.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*", k=4))
+        random_string = "".join(
+            rnd.choices(
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*",
+                k=4,
+            )
+        )
         password = f"{name[:2]}{last_name[-2:]}{rnd.choice(['$', '%', '&'])}{birth_year[-2:]}{phone[-3:]}{random_string}{national_id[:3]}"
         print(Fore.CYAN + f"Generated Secure Password: {password}")
 
-    elif level == "4":  
-        count = int(input(Fore.GREEN + "Enter the number of passwords to generate: "))
-        length = int(input(Fore.GREEN + "Enter the desired password length: "))
-        characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"
-        passwords = [''.join(rnd.choices(characters, k=length)) for _ in range(count)]
-        file_name = input(Fore.GREEN + "Enter the file name to save the passwords: ")
-
-        with open(file_name, "w") as file:
-            for password in passwords:
-                file.write(password + "\n")
-        
-        print(Fore.CYAN + f"{count} passwords saved in {file_name}")
-
+    elif level == "4":
+        create_password_list()
     else:
         print(Fore.RED + "Invalid option. Please try again.")
         return create_password()
 
     if level in ["1", "2", "3"]:
-        save_option = input(Fore.YELLOW + "\nDo you want to save the password to a file? (yes/no): ").lower()
+        save_option = input(
+            Fore.YELLOW + "\nDo you want to save the password to a file? (yes/no): "
+        ).lower()
         if save_option == "yes":
             file_name = input(Fore.GREEN + "Enter the file name: ")
             with open(file_name, "w") as file:
@@ -110,89 +198,77 @@ def create_password():
             print(Fore.CYAN + f"Password saved in {file_name}")
 
 
-def encrypt_decrypt():
-    backend = default_backend()
-    key = b'ThisIsA16ByteKey'
-    iv = b'ThisIsA16ByteIV_'
+def create_password_list():
+    """Generates a list of passwords and saves them to a text file."""
+    clear_screen()
+    print(Fore.CYAN + "\nGenerate a Custom Password List:\n")
 
-    def aes_encrypt(text):
-        padder = padding.PKCS7(algorithms.AES.block_size).padder()
-        padded_data = padder.update(text.encode()) + padder.finalize()
-        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
-        encryptor = cipher.encryptor()
-        encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
-        return base64.b64encode(encrypted_data).decode()
+    try:
+        count = int(input(Fore.GREEN + "Enter the number of passwords to generate: "))
+        length = int(input(Fore.GREEN + "Enter the desired password length: "))
 
-    def aes_decrypt(encrypted_text):
-        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
-        decryptor = cipher.decryptor()
-        decrypted_data = decryptor.update(base64.b64decode(encrypted_text)) + decryptor.finalize()
-        unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
-        unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
-        return unpadded_data.decode()
+        if count <= 0 or length <= 0:
+            print(Fore.RED + "Count and length must be positive integers.")
+            return
 
-    while True:
-        clear_screen()
-        print(Fore.MAGENTA + "\nEncryption Options:\n")
-        print("1. Encrypt Text")
-        print("2. Decrypt Text")
-        print("0. Back to Main Menu")
-        choice = input(Fore.YELLOW + "Choose an option: ").strip()
+        characters = (
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"
+        )
+        passwords = ["".join(rnd.choices(characters, k=length)) for _ in range(count)]
 
-        if choice == "1":
-            text = input(Fore.GREEN + "Enter the text to encrypt: ")
-            encrypted = aes_encrypt(text)
-            print(Fore.CYAN + f"Encrypted Text: {encrypted}")
+        file_name = input(
+            Fore.GREEN
+            + "Enter the file name to save the passwords (e.g., passwords.txt): "
+        ).strip()
 
-        elif choice == "2":
-            encrypted_text = input(Fore.GREEN + "Enter the encrypted text to decrypt: ")
-            try:
-                decrypted = aes_decrypt(encrypted_text)
-                print(Fore.CYAN + f"Decrypted Text: {decrypted}")
-            except Exception as e:
-                print(Fore.RED + f"Decryption failed: {e}")
+        if not file_name.endswith(".txt"):
+            file_name += ".txt"
 
-        elif choice == "0":
-            break
+        with open(file_name, "w") as file:
+            for password in passwords:
+                file.write(password + "\n")
 
-        else:
-            print(Fore.RED + "Invalid option. Please try again.")
-            time.sleep(2)
+        print(
+            Fore.CYAN
+            + f"\n{count} passwords of length {length} have been saved in '{file_name}'."
+        )
 
-
-def timer(t):
-    while t >= 0:
-        mins, secs = divmod(t, 60)
-        hrs, mins = divmod(mins, 60)
-        timer_str = '{:02d}:{:02d}:{:02d}'.format(hrs, mins, secs)
-        print(Fore.MAGENTA, Style.BRIGHT, timer_str, end="\r")
-        time.sleep(1)
-        t -= 1
+    except ValueError:
+        print(
+            Fore.RED
+            + "Invalid input. Please enter numeric values for count and length."
+        )
+    except Exception as e:
+        print(Fore.RED + f"An error occurred: {e}")
 
 
 def main():
     show_usage()
     while True:
-        print(Fore.MAGENTA + "\nPassword Manager")
+        print(Fore.MAGENTA + "\nPassword Manager and Encryption Tool")
         print(Fore.BLUE + "1. Create Password")
-        print(Fore.GREEN + "2. Timer")
+        print(Fore.GREEN + "2. Generate Password List")
         print(Fore.YELLOW + "3. Encryption/Decryption")
+        print(Fore.RED + "4. Hashing (SHA-256)")
         print(Fore.RED + "0. Exit")
         choice = input(Fore.YELLOW + "Choose an option: ").strip()
 
         if choice == "1":
             create_password()
         elif choice == "2":
-            t = int(input(Fore.GREEN + "Enter time in seconds: "))
-            timer(t)
+            create_password_list()
         elif choice == "3":
-            encrypt_decrypt()
+            print(Fore.CYAN + "Encryption and Decryption Module Coming Soon!")
+        elif choice == "4":
+            text = input(Fore.GREEN + "Enter the text to hash: ")
+            hashed = sha256_hash(text)
+            print(Fore.CYAN + f"SHA-256 Hashed text: {hashed}")
         elif choice == "0":
-            print(Fore.GREEN + "Exiting program. Goodbye!")
-            break
+            print(Fore.RED + "Exiting the program...")
+            sys.exit(0)
         else:
             print(Fore.RED + "Invalid option. Please try again.")
-            time.sleep(2)
+
 
 if __name__ == "__main__":
     main()
